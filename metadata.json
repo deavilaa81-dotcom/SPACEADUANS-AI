@@ -1,0 +1,7 @@
+{
+  "name": "SpaceAduanas AI - Revisor de Pedimentos",
+  "description": "Sistema avanzado de revisión de pedimentos basado en IA, experto en Anexo 22, TIGIE y normativa de comercio exterior mexicano.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
