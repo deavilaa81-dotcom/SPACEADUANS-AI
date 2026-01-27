@@ -10,10 +10,35 @@ import GlobalHistory from './components/GlobalHistory';
 
 const USERS_STORAGE_KEY = 'space_aduanas_users';
 const REPORTS_STORAGE_KEY = 'space_aduanas_reports';
+const SESSION_COOKIE_NAME = 'space_session_user';
+
+// Utilidades para manejo de Cookies
+const setCookie = (name: string, value: string, days: number) => {
+  const date = new Date();
+  date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+  const expires = "expires=" + date.toUTCString();
+  document.cookie = name + "=" + value + ";" + expires + ";path=/;SameSite=Strict";
+};
+
+const getCookie = (name: string) => {
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+  }
+  return null;
+};
+
+const deleteCookie = (name: string) => {
+  document.cookie = name + '=; Max-Age=-99999999;path=/;';
+};
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeAuditResult, setActiveAuditResult] = useState<any>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem(USERS_STORAGE_KEY);
@@ -24,14 +49,24 @@ const App: React.FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState<'reviewer' | 'admin' | 'history'>('reviewer');
-  
-  // Persistencia de reportes
   const [reports, setReports] = useState<RevisionReport[]>(() => {
     const saved = localStorage.getItem(REPORTS_STORAGE_KEY);
     return saved ? JSON.parse(saved) : [];
   });
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  // Efecto para recuperar la sesión al cargar la página
+  useEffect(() => {
+    const sessionEmail = getCookie(SESSION_COOKIE_NAME);
+    if (sessionEmail) {
+      const foundUser = users.find(u => u.email === sessionEmail);
+      if (foundUser) {
+        setUser(foundUser);
+      }
+    }
+    setIsInitializing(false);
+  }, [users]);
 
   useEffect(() => {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
@@ -45,6 +80,8 @@ const App: React.FC = () => {
     const foundUser = users.find(u => u.email === credentials.email && u.password === credentials.pass);
     if (foundUser) {
       setUser(foundUser);
+      // Guardar sesión en Cookie por 1 día
+      setCookie(SESSION_COOKIE_NAME, foundUser.email, 1);
     } else {
       alert("Credenciales incorrectas");
     }
@@ -54,6 +91,8 @@ const App: React.FC = () => {
     setUser(null);
     setActiveTab('reviewer');
     setActiveAuditResult(null);
+    // Limpiar Cookies físicamente
+    deleteCookie(SESSION_COOKIE_NAME);
   };
 
   const handleAddUser = (name: string, email: string) => {
@@ -83,15 +122,11 @@ const App: React.FC = () => {
     setReports(prev => [report, ...prev]);
   };
 
-  // Función para actualizar un reporte existente (usada por el admin al corregir en vivo)
   const handleUpdateReport = (pedimentoNumber: string, userName: string, updatedData: any) => {
     setReports(prev => prev.map(report => {
-      // Intentamos machear por número de pedimento y nombre de usuario para mayor precisión
       if (report.pedimentoNumber === pedimentoNumber && report.userName === userName) {
-        // Recalculamos el estatus 'Conforme' basado en las correcciones del admin o el override
         const allCorrect = updatedData.validations.every((v: any) => v.status === 'correct');
         const isConforme = updatedData.clientOverride || allCorrect;
-        
         return {
           ...report,
           errors: updatedData.validations,
@@ -106,7 +141,6 @@ const App: React.FC = () => {
 
   const handleContactAdmin = (msg: string = "El usuario requiere asistencia técnica inmediata.") => {
     if (!user) return;
-    
     const newNotification: AppNotification = {
       id: Math.random().toString(36).substr(2, 9),
       userEmail: user.email,
@@ -117,7 +151,6 @@ const App: React.FC = () => {
       chatHistory: [{ role: 'user', text: msg, timestamp: new Date() }],
       auditData: activeAuditResult 
     };
-
     setNotifications(prev => [newNotification, ...prev]);
   };
 
@@ -130,30 +163,26 @@ const App: React.FC = () => {
   };
 
   const handleSendAdminMessage = (notificationId: string, text: string) => {
-    const adminMsg: ChatMessage = {
-      role: 'admin',
-      text,
-      timestamp: new Date()
-    };
+    const adminMsg: ChatMessage = { role: 'admin', text, timestamp: new Date() };
     setNotifications(prev => prev.map(n => 
-      n.id === notificationId 
-        ? { ...n, chatHistory: [...(n.chatHistory || []), adminMsg] } 
-        : n
+      n.id === notificationId ? { ...n, chatHistory: [...(n.chatHistory || []), adminMsg] } : n
     ));
   };
 
   const handleSendUserSupportMessage = (userEmail: string, text: string) => {
-    const userMsg: ChatMessage = {
-      role: 'user',
-      text,
-      timestamp: new Date()
-    };
+    const userMsg: ChatMessage = { role: 'user', text, timestamp: new Date() };
     setNotifications(prev => prev.map(n => 
-      (n.userEmail === userEmail && n.status === 'in_progress')
-        ? { ...n, chatHistory: [...(n.chatHistory || []), userMsg] } 
-        : n
+      (n.userEmail === userEmail && n.status === 'in_progress') ? { ...n, chatHistory: [...(n.chatHistory || []), userMsg] } : n
     ));
   };
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Login onLogin={handleLogin} />;

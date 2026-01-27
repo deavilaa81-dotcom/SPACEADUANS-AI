@@ -20,65 +20,62 @@ const cleanJsonResponse = (text: string): string => {
 };
 
 export const analyzePedimento = async (
-  pedimento: FileContent | null, 
-  invoices?: FileContent[], 
-  originCert?: FileContent | null,
-  cove?: FileContent | null
+  pedimentos: FileContent[], 
+  invoices: FileContent[], 
+  certs: FileContent[],
+  coves: FileContent[]
 ): Promise<any> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const isOnlyCert = !pedimento && !!originCert;
+  const hasPedimento = pedimentos.length > 0;
+  const isOnlyCert = !hasPedimento && certs.length > 0;
 
   const systemInstruction = isOnlyCert 
-    ? `Eres el "Auditor Especialista T-MEC". Revisa el Certificado de Origen conforme al Anexo 5-A de las Reglas del T-MEC.`
+    ? `Eres el "Auditor Especialista T-MEC". Revisa los Certificados de Origen proporcionados conforme al Anexo 5-A de las Reglas del T-MEC.`
     : `Eres el "AUDITOR SENIOR LÍDER de SpaceAduanas", experto en Anexo 22 y Ley Aduanera Mexicana.
        
-       MISION: Ejecutar una TRIANGULACIÓN 3D EXHAUSTIVA (Pedimento vs Factura vs COVE).
+       REGLA CRÍTICA DE REFERENCIA (OBLIGATORIO):
+       - Extrae el número de pedimento EXACTAMENTE como aparece en el documento.
+       - DEBES respetar y mantener todos los guiones (-), espacios, puntos o caracteres especiales que contenga la referencia original.
+       - NO limpies, NO resumas y NO quites ceros a la izquierda del número de pedimento.
        
-       REGLA DE CARACTERES ESPECIALES (CRÍTICA):
+       MISION: Ejecutar una TRIANGULACIÓN 3D EXHAUSTIVA utilizando TODOS los archivos proporcionados (Pedimentos, Facturas, COVEs y Certificados).
+       
+       REGLA DE CARACTERES ESPECIALES EN PARTIDAS:
        - El campo 'partida' NUNCA debe contener caracteres especiales como: */-!"#$%&/()?¡¨*ñ Ñ[[_
-       - Si detectas CUALQUIER carácter de estos en el número de partida, marca el estatus como 'error' con la descripción "Detección de caracteres no permitidos en campo partida".
+       - Si detectas CUALQUIER carácter de estos en el número de partida, marca el estatus como 'error'.
 
        BARRIDO COMPLETO DE PARTIDAS:
-       - Identifica TODAS las partidas detectadas.
-       - Por cada partida (1, 2, 3...):
-         1. FRACCIÓN ARANCELARIA: Cruza vs Certificado de Origen.
-         2. UMC y CANTIDAD: Clave '6' (PZA) vs Factura.
-         3. VALOR COMERCIAL: Cruza Valor Unitario y Total.
-
-       REGLAS DE ESTATUS:
-       - 'correct' si el match es perfecto.
-       - 'error' si hay discrepancias o caracteres prohibidos.
+       - Identifica cada discrepancia por separado. 
+       - IMPORTANTE: Crea un objeto distinto en 'validations' para cada campo por partida (FRACCION, CANTIDAD, VALOR). No los agrupes.
 
        REGLAS DE REPORTE:
-       - 'correctValue' formato: "FRACCIÓN | CANTIDAD UMC | VALOR COMERCIAL"
+       - 'field': Nombres claros como "FRACCION ARANCELARIA", "CANTIDAD UMC", "VALOR COMERCIAL".
        - Ahorro Space: Mínimo $2,600 MXN si es 'correct'. 0 si es 'error'.`;
 
   const parts: any[] = [];
   
-  if (pedimento) {
-    parts.push({ text: "DOCUMENTO: PEDIMENTO" });
-    parts.push({ inlineData: { mimeType: pedimento.mimeType, data: pedimento.data } });
-  }
+  pedimentos.forEach((p, i) => {
+    parts.push({ text: `DOCUMENTO: PEDIMENTO PARTE ${i + 1}` });
+    parts.push({ inlineData: { mimeType: p.mimeType, data: p.data } });
+  });
   
-  if (invoices && invoices.length > 0) {
-    invoices.forEach((inv, i) => {
-      parts.push({ text: `DOCUMENTO: FACTURA/EVIDENCIA ${i + 1}` });
-      parts.push({ inlineData: { mimeType: inv.mimeType, data: inv.data } });
-    });
-  }
+  invoices.forEach((inv, i) => {
+    parts.push({ text: `DOCUMENTO: FACTURA/EVIDENCIA ${i + 1}` });
+    parts.push({ inlineData: { mimeType: inv.mimeType, data: inv.data } });
+  });
   
-  if (cove) {
-    parts.push({ text: "DOCUMENTO: COVE" });
-    parts.push({ inlineData: { mimeType: cove.mimeType, data: cove.data } });
-  }
+  coves.forEach((c, i) => {
+    parts.push({ text: `DOCUMENTO: COVE ${i + 1}` });
+    parts.push({ inlineData: { mimeType: c.mimeType, data: c.data } });
+  });
   
-  if (originCert) {
-    parts.push({ text: "DOCUMENTO: CERTIFICADO DE ORIGEN" });
-    parts.push({ inlineData: { mimeType: originCert.mimeType, data: originCert.data } });
-  }
+  certs.forEach((cert, i) => {
+    parts.push({ text: `DOCUMENTO: CERTIFICADO DE ORIGEN ${i + 1}` });
+    parts.push({ inlineData: { mimeType: cert.mimeType, data: cert.data } });
+  });
 
-  parts.push({ text: "Analiza exhaustivamente. Revisa caracteres especiales en partidas. Responde solo JSON." });
+  parts.push({ text: "Analiza exhaustivamente todo el set de archivos. Extrae el número de pedimento respetando guiones. Responde solo JSON." });
 
   try {
     const response = await ai.models.generateContent({
@@ -90,7 +87,10 @@ export const analyzePedimento = async (
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            pedimentoNumber: { type: Type.STRING },
+            pedimentoNumber: { 
+              type: Type.STRING,
+              description: "Número de pedimento tal cual aparece en el documento, respetando guiones y formato."
+            },
             validations: {
               type: Type.ARRAY,
               items: {
