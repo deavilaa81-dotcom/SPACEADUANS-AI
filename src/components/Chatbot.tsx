@@ -84,6 +84,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ onContactAdmin, onSendUserSupportMess
       setMessages(prev => [...prev, { role: 'model', text: response || 'Lo siento, hubo un problema al procesar tu solicitud.', timestamp: new Date() }]);
     } catch (err) {
       console.error(err);
+      setMessages(prev => [...prev, { role: 'model', text: 'Error: No se pudo obtener respuesta del Bot.', timestamp: new Date() }]);
     } finally {
       setLoading(false);
     }

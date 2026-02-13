@@ -2,5 +2,6 @@
   "firebase_hosting": {
     "deploymentHostingUrl": "https://a22-21383777-9dbc2.web.app"
   },
-  "gemini_api": {}
+  "gemini_api": {},
+  "secrets_manager": {}
 }

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { analyzePedimento } from '../services/geminiService';
+// import { runAudit } from '../services/geminiService'; // Desactivado para el plan gratuito
 import { PedimentoError, RevisionReport, User, FileContent, AppNotification } from '../types';
 
 interface ReviewerProps {
@@ -9,6 +9,11 @@ interface ReviewerProps {
   onAuditChange?: (result: any) => void;
   notifications?: AppNotification[];
 }
+
+// Mock function para reemplazar runAudit en plan gratuito
+const runAudit = (files: any, onProgress: any) => new Promise((resolve, reject) => {
+  reject(new Error("La auditoría con IA no está disponible en el plan gratuito."));
+});
 
 const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, notifications = [] }) => {
   const [includeCertInAudit, setIncludeCertInAudit] = useState(false);
@@ -27,6 +32,8 @@ const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, 
   const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState("");
 
   const activeSupport = useMemo(() => 
     notifications.find(n => n.userEmail === user.email && n.status === 'in_progress' && n.auditData),
@@ -61,7 +68,7 @@ const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, 
         const resultString = reader.result as string;
         const b64 = resultString.split(',')[1];
         const mimeType = file.type || 'application/octet-stream';
-        const newFile = { data: b64, mimeType };
+        const newFile = { data: b64, mimeType, name: file.name };
 
         if (type === 'pedimento') setPedimentoFiles(prev => [...prev, newFile]);
         else if (type === 'cert-audit') setCertInAuditFiles(prev => [...prev, newFile]);
@@ -89,27 +96,38 @@ const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, 
     setResult(null);
     setErrorMsg(null);
     setClientOverride(false);
+    setProgress(0);
+    setProgressMessage("");
+
+    const onProgress = (progress: number, message: string) => {
+      setProgress(progress);
+      setProgressMessage(message);
+    }
 
     try {
-      const analysis = await analyzePedimento(
-        mode === 'audit' ? pedimentoFiles : [],
-        mode === 'audit' ? invoiceFiles : [],
-        mode === 'audit' ? (includeCertInAudit ? certInAuditFiles : []) : soloCertFiles,
-        mode === 'audit' ? coveFiles : []
-      );
+      const filesToAudit = [
+        ...pedimentoFiles,
+        ...invoiceFiles,
+        ...(includeCertInAudit ? certInAuditFiles : []),
+        ...coveFiles,
+        ...soloCertFiles
+      ].map(f => ({ name: f.name, content: f.data }));
+
+      const analysis: any = await runAudit(filesToAudit, onProgress);
+
       if (analysis) {
         setResult(analysis);
         
         const report: RevisionReport = {
           id: Math.random().toString(36).substr(2, 9),
-          pedimentoNumber: analysis.pedimentoNumber || 'AUDITORIA_EXTERNAL',
+          pedimentoNumber: analysis.numero_pedimento || 'AUDITORIA_EXTERNAL',
           userName: user.name,
           date: new Date().toISOString(),
           errors: analysis.validations || [],
-          isConforme: analysis.isConforme,
+          isConforme: analysis.statusGeneral === 'CONFORME',
           recommendations: analysis.recommendations,
-          totalSavings: analysis.totalSavings,
-          totalRisk: analysis.totalRisk
+          totalSavings: analysis.ahorroPotencial,
+          totalRisk: analysis.riesgoTotal
         };
         onSaveReport(report);
       }
@@ -155,7 +173,7 @@ const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, 
           (s as HTMLElement).style.transform = 'rotate(-10deg)';
       });
       const sourceHTML = header + contentClone.innerHTML + footer;
-      const blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
+      const blob = new Blob(['﻿', sourceHTML], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -250,8 +268,8 @@ const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, 
               )}
             </div>
             {errorMsg && <p className="mt-4 text-xs font-bold text-red-600">{errorMsg}</p>}
-            <button onClick={() => executeAnalysis('audit')} disabled={analyzing} className={`w-full mt-6 py-5 text-white font-black text-[12px] tracking-[0.2em] rounded-2xl shadow-lg transition-all ${analyzing ? 'bg-blue-900' : 'bg-blue-600 hover:bg-blue-700'}`}>
-              {analyzing ? 'ANALIZANDO TRIANGULACIÓN...' : 'INICIAR AUDITORÍA'}
+            <button disabled title="Actualiza a un plan superior para usar esta función" className="w-full mt-6 py-5 text-white font-black text-[12px] tracking-[0.2em] rounded-2xl shadow-lg bg-slate-400 cursor-not-allowed">
+              INICIAR AUDITORÍA (FUNCIÓN PREMIUM)
             </button>
           </div>
         </div>
@@ -264,8 +282,8 @@ const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, 
               <div className="max-w-md mx-auto mb-6">
                 <FileCard label="Certificados de Origen" count={soloCertFiles.length} onUpload={(e) => handleFileUpload(e, 'cert-solo')} onClear={() => clearFiles('cert-solo')} type="cert-solo" color="blue" />
               </div>
-              <button onClick={() => executeAnalysis('independent-cert')} disabled={analyzing} className="px-12 py-4 text-white font-black text-[12px] tracking-[0.2em] rounded-2xl shadow-xl bg-indigo-600 hover:bg-indigo-700">
-                {analyzing ? 'AUDITANDO...' : 'AUDITAR CERTIFICADOS'}
+              <button disabled title="Actualiza a un plan superior para usar esta función" className="px-12 py-4 text-white font-black text-[12px] tracking-[0.2em] rounded-2xl shadow-xl bg-slate-400 cursor-not-allowed">
+                AUDITAR CERTIFICADOS (FUNCIÓN PREMIUM)
               </button>
            </div>
         </div>
