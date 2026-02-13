@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-// import { runAudit } from '../services/geminiService'; // Desactivado para el plan gratuito
+import { runAudit } from '../services/geminiService';
 import { PedimentoError, RevisionReport, User, FileContent, AppNotification } from '../types';
 
 interface ReviewerProps {
@@ -10,17 +10,11 @@ interface ReviewerProps {
   notifications?: AppNotification[];
 }
 
-// Mock function para reemplazar runAudit en plan gratuito
-const runAudit = (files: any, onProgress: any) => new Promise((resolve, reject) => {
-  reject(new Error("La auditoría con IA no está disponible en el plan gratuito."));
-});
-
 const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, notifications = [] }) => {
   const [includeCertInAudit, setIncludeCertInAudit] = useState(false);
   const [showIndependentCertModule, setShowIndependentCertModule] = useState(false);
   const [clientOverride, setClientOverride] = useState(false);
 
-  // Estados ahora como Arreglos para soportar multi-upload
   const [pedimentoFiles, setPedimentoFiles] = useState<FileContent[]>([]);
   const [invoiceFiles, setInvoiceFiles] = useState<FileContent[]>([]);
   const [certInAuditFiles, setCertInAuditFiles] = useState<FileContent[]>([]);
@@ -268,8 +262,15 @@ const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, 
               )}
             </div>
             {errorMsg && <p className="mt-4 text-xs font-bold text-red-600">{errorMsg}</p>}
-            <button disabled title="Actualiza a un plan superior para usar esta función" className="w-full mt-6 py-5 text-white font-black text-[12px] tracking-[0.2em] rounded-2xl shadow-lg bg-slate-400 cursor-not-allowed">
-              INICIAR AUDITORÍA (FUNCIÓN PREMIUM)
+            <button 
+              onClick={() => executeAnalysis('audit')} 
+              disabled={analyzing || pedimentoFiles.length === 0}
+              className="w-full mt-6 py-5 text-white font-black text-[12px] tracking-[0.2em] rounded-2xl shadow-lg transition-all duration-300 ease-in-out 
+                         ${analyzing || pedimentoFiles.length === 0 
+                           ? 'bg-slate-400 cursor-not-allowed' 
+                           : 'bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300'}"
+            >
+              {analyzing ? 'ANALIZANDO...' : 'INICIAR AUDITORÍA'}
             </button>
           </div>
         </div>
@@ -282,8 +283,15 @@ const Reviewer: React.FC<ReviewerProps> = ({ user, onSaveReport, onAuditChange, 
               <div className="max-w-md mx-auto mb-6">
                 <FileCard label="Certificados de Origen" count={soloCertFiles.length} onUpload={(e) => handleFileUpload(e, 'cert-solo')} onClear={() => clearFiles('cert-solo')} type="cert-solo" color="blue" />
               </div>
-              <button disabled title="Actualiza a un plan superior para usar esta función" className="px-12 py-4 text-white font-black text-[12px] tracking-[0.2em] rounded-2xl shadow-xl bg-slate-400 cursor-not-allowed">
-                AUDITAR CERTIFICADOS (FUNCIÓN PREMIUM)
+              <button 
+                onClick={() => executeAnalysis('independent-cert')} 
+                disabled={analyzing || soloCertFiles.length === 0}
+                className="px-12 py-4 text-white font-black text-[12px] tracking-[0.2em] rounded-2xl shadow-xl transition-all duration-300 ease-in-out 
+                           ${analyzing || soloCertFiles.length === 0 
+                             ? 'bg-slate-400 cursor-not-allowed' 
+                             : 'bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300'}"
+              >
+                {analyzing ? 'ANALIZANDO...' : 'AUDITAR CERTIFICADOS'}
               </button>
            </div>
         </div>
