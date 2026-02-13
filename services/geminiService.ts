@@ -25,7 +25,7 @@ export const analyzePedimento = async (
   certs: FileContent[],
   coves: FileContent[]
 ): Promise<any> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
   
   const hasPedimento = pedimentos.length > 0;
   const isOnlyCert = !hasPedimento && certs.length > 0;
@@ -125,7 +125,7 @@ export const analyzePedimento = async (
 };
 
 export const chatWithExpert = async (history: any[], message: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
   const chat = ai.chats.create({
     model: 'gemini-3-flash-preview',
     history,
