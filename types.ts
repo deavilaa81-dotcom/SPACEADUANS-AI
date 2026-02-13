@@ -14,7 +14,7 @@ export interface FileContent {
 export interface PedimentoError {
   field: string;
   partida?: string;
-  error: string;
+  observation: string; // Renombrado de 'error' a 'observation' para claridad semántica
   correctValue: string;
   status: 'error' | 'correct';
   potentialFine?: string; 

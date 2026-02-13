@@ -14,18 +14,16 @@ interface ChatbotProps {
 const Chatbot: React.FC<ChatbotProps> = ({ onContactAdmin, onSendUserSupportMessage, notifications, currentUserEmail, currentUserName }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', text: '¡Hola! Soy el experto de SpaceAduanas. ¿En qué puedo ayudarte con tu pedimento hoy?', timestamp: new Date() }
+    { role: 'model', text: 'Hola Soy Space Bot ¿en que puedo ayudarte el dia de hoy?', timestamp: new Date() }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [contactStatus, setContactStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Determinar si hay una sesión activa de soporte humano
   const activeNotification = notifications.find(n => n.userEmail === currentUserEmail && n.status === 'in_progress');
   const isHumanSupportActive = !!activeNotification;
 
-  // Sincronizar chat con respuestas del admin y cambios de estatus
   useEffect(() => {
     if (isHumanSupportActive && activeNotification?.chatHistory) {
       const adminMessages = activeNotification.chatHistory.filter(m => m.role === 'admin');
@@ -41,7 +39,6 @@ const Chatbot: React.FC<ChatbotProps> = ({ onContactAdmin, onSendUserSupportMess
       }
     }
 
-    // Si una notificación se marca como resuelta, informar al usuario y reactivar IA
     const resolvedNotification = notifications.find(n => n.userEmail === currentUserEmail && n.status === 'resolved');
     if (resolvedNotification) {
       setMessages(prev => {
@@ -73,12 +70,10 @@ const Chatbot: React.FC<ChatbotProps> = ({ onContactAdmin, onSendUserSupportMess
     setInput('');
 
     if (isHumanSupportActive) {
-      // Si el soporte humano está activo, enviamos el mensaje al admin y NO llamamos a la IA
       onSendUserSupportMessage(currentUserEmail, currentInput);
       return;
     }
 
-    // Si no hay soporte humano, usamos la IA
     setLoading(true);
     try {
       const history = messages.map(m => ({
@@ -100,7 +95,6 @@ const Chatbot: React.FC<ChatbotProps> = ({ onContactAdmin, onSendUserSupportMess
       onContactAdmin("Solicitud de ayuda directa.");
       setContactStatus('sent');
       
-      // Respuesta automática inmediata de la IA
       setMessages(prev => [
         ...prev, 
         { 
@@ -115,17 +109,18 @@ const Chatbot: React.FC<ChatbotProps> = ({ onContactAdmin, onSendUserSupportMess
   };
 
   return (
+    <>
     <div className="fixed bottom-6 right-6 z-50">
       {isOpen ? (
         <div className="bg-white w-[350px] sm:w-[400px] h-[550px] rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-scaleIn origin-bottom-right">
           <div className="bg-blue-600 p-4 flex items-center justify-between text-white shadow-md">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center p-1 border-2 border-blue-400">
-                <img src="https://picsum.photos/seed/robot/200" alt="Robot AI" className="w-full h-full rounded-full object-cover" />
+              <div className="w-10 h-10 bg-transparent flex items-center justify-center">
+                <img src="/assets/robot.png" alt="Robot AI" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h3 className="font-bold text-sm">
-                  {isHumanSupportActive ? 'Soporte Directo (Admin)' : 'Soporte SpaceAduanas'}
+                  {isHumanSupportActive ? 'Soporte Directo (Admin)' : 'Space Bot'}
                 </h3>
                 <div className="flex items-center text-[10px] opacity-80">
                   <span className={`w-2 h-2 ${isHumanSupportActive ? 'bg-orange-400 animate-pulse' : 'bg-green-400'} rounded-full mr-1`}></span> 
@@ -222,18 +217,23 @@ const Chatbot: React.FC<ChatbotProps> = ({ onContactAdmin, onSendUserSupportMess
       ) : (
         <button 
           onClick={() => setIsOpen(true)}
-          className="bg-blue-600 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:bg-blue-700 hover:scale-110 transition-all group border-4 border-white"
+          className="bg-transparent border-none p-0 w-40 h-40 cursor-pointer"
         >
           {isHumanSupportActive && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5">
+            <span className="absolute top-4 right-4 flex h-5 w-5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-5 w-5 bg-orange-500 text-[10px] items-center justify-center text-white font-bold">!</span>
             </span>
           )}
-          <img src="https://picsum.photos/seed/robot/200" alt="Robot AI" className="w-12 h-12 rounded-full object-cover group-hover:rotate-12 transition-transform" />
+          <img 
+            src="/assets/robot.png" 
+            alt="Robot AI" 
+            className="w-full h-full object-contain"
+          />
         </button>
       )}
     </div>
+    </>
   );
 };
 

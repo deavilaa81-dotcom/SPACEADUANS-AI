@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, arrayUnion, getDocs, writeBatch, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, arrayUnion, getDocs, deleteDoc } from 'firebase/firestore';
 import { User, RevisionReport, AppNotification, NotificationStatus, ChatMessage } from './types';
 import Login from './components/Login';
 import Layout from './components/Layout';
@@ -49,70 +48,68 @@ const App: React.FC = () => {
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-  // Inicialización y sincronización de datos
   useEffect(() => {
     const initializeData = async () => {
       setIsInitializing(true);
+      try {
+        const adminUser: User = { 
+          name: 'Marco de Avila', 
+          email: 'marco.deavila@spaceaduanas.com', 
+          password: '3569', 
+          isSuperUser: true 
+        };
+        await setDoc(doc(db, "users", adminUser.email), adminUser);
 
-      // Sincronizar Usuarios para el panel de admin
-      const usersUnsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
-        const serverUsers = snapshot.docs.map(doc => doc.data() as User);
+        const usersCollection = collection(db, "users");
+        const usersSnapshot = await getDocs(usersCollection);
+        const serverUsers = usersSnapshot.docs.map(doc => doc.data() as User);
         setUsers(serverUsers);
-      });
 
-      // Suscripción a Notificaciones en tiempo real
-      const notifUnsubscribe = onSnapshot(collection(db, "notifications"), (snapshot) => {
-        const serverNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppNotification));
-        setNotifications(serverNotifications);
-      });
+        const notifUnsubscribe = onSnapshot(collection(db, "notifications"), (snapshot) => {
+          const serverNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppNotification));
+          setNotifications(serverNotifications);
+        });
 
-      // Rehidratar sesión del usuario desde la cookie
-      const sessionEmail = getCookie(SESSION_COOKIE_NAME);
-      if (sessionEmail) {
-        const userRef = doc(db, "users", sessionEmail);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          setUser(userSnap.data() as User);
-        } else {
-          // El usuario en la cookie ya no existe en la BD, se limpia la cookie.
-          deleteCookie(SESSION_COOKIE_NAME);
+        const sessionEmail = getCookie(SESSION_COOKIE_NAME);
+        if (sessionEmail) {
+          const foundUser = serverUsers.find(u => u.email === sessionEmail);
+          if (foundUser) {
+            setUser(foundUser);
+          }
         }
-      }
+        
+        return () => notifUnsubscribe();
 
-      setIsInitializing(false);
-      
-      return () => {
-        usersUnsubscribe();
-        notifUnsubscribe();
-      };
+      } catch (error) {
+        console.error("Error crítico durante la inicialización de la app:", error);
+        alert("Hubo un error al iniciar la aplicación. Por favor, revisa la consola para más detalles.");
+      } finally {
+        setIsInitializing(false);
+      }
     };
 
     const unsubscribePromise = initializeData();
     
     return () => { 
-      unsubscribePromise.then(unsub => unsub && unsub());
+      unsubscribePromise.then(unsub => {
+        if (unsub && typeof unsub === 'function') {
+          unsub();
+        }
+      });
     };
   }, []);
 
-  // Persistir reportes en LocalStorage
   useEffect(() => {
     localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(reports));
   }, [reports]);
 
-  const handleLogin = async (credentials: { email: string; pass: string }) => {
-    const userRef = doc(db, "users", credentials.email);
-    const userSnap = await getDoc(userRef);
-
-    if (userSnap.exists()) {
-      const foundUser = userSnap.data() as User;
-      if (foundUser.password === credentials.pass) {
-        setUser(foundUser);
-        setCookie(SESSION_COOKIE_NAME, foundUser.email, 1);
-      } else {
-        alert("Credenciales incorrectas o el usuario no existe.");
-      }
+  const handleLogin = (credentials: { email: string; pass: string }) => {
+    const foundUser = users.find(u => u.email === credentials.email && u.password === credentials.pass);
+    if (foundUser) {
+      setUser(foundUser);
+      setCookie(SESSION_COOKIE_NAME, foundUser.email, 1);
     } else {
-      alert("Credenciales incorrectas o el usuario no existe.");
+      alert("Credenciales incorrectas. Verifique el correo y la contraseña de 4 dígitos.");
     }
   };
 
@@ -124,25 +121,35 @@ const App: React.FC = () => {
   };
 
   const handleAddUser = async (name: string, email: string) => {
+    if (users.find(u => u.email === email)) {
+      alert("El correo electrónico ya existe.");
+      return;
+    }
     const randomPass = Math.floor(1000 + Math.random() * 9000).toString();
     const newUser: User = { name, email, password: randomPass, isSuperUser: false };
     await setDoc(doc(db, "users", newUser.email), newUser);
-    // La actualización local ya no es necesaria gracias a onSnapshot
+    setUsers(prev => [...prev, newUser]);
+    alert(`Usuario creado. Contraseña: ${randomPass}`);
   };
 
   const handleDeleteUser = async (email: string) => {
+    if (email === 'marco.deavila@spaceaduanas.com') {
+      alert("No se puede eliminar el administrador principal.");
+      return;
+    }
     if (window.confirm(`¿Estás seguro de eliminar al usuario ${email}?`)) {
       await deleteDoc(doc(db, "users", email));
-      // La actualización local ya no es necesaria gracias a onSnapshot
+      setUsers(prev => prev.filter(u => u.email !== email));
     }
   };
 
   const handleToggleAdmin = async (email: string) => {
+    if (email === 'marco.deavila@spaceaduanas.com') return;
     const userRef = doc(db, "users", email);
     const targetUser = users.find(u => u.email === email);
     if(targetUser) {
         await updateDoc(userRef, { isSuperUser: !targetUser.isSuperUser });
-        // La actualización local ya no es necesaria gracias a onSnapshot
+        setUsers(prev => prev.map(u => u.email === email ? { ...u, isSuperUser: !u.isSuperUser } : u));
     }
   };
 
@@ -185,6 +192,12 @@ const App: React.FC = () => {
   const handleUpdateNotificationStatus = async (id: string, status: NotificationStatus) => {
     const notifRef = doc(db, "notifications", id);
     await updateDoc(notifRef, { status });
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    if (window.confirm('¿Estás seguro de eliminar esta solicitud?')) {
+      await deleteDoc(doc(db, "notifications", id));
+    }
   };
 
   const handleUpdateNotificationAudit = (id: string, auditData: any) => {
@@ -252,10 +265,11 @@ const App: React.FC = () => {
             onUpdateAuditData={handleUpdateNotificationAudit}
             onUpdateReport={handleUpdateReport}
             onSendMessage={handleSendAdminMessage}
+            onDeleteNotification={handleDeleteNotification}
           />
         )}
 
-        {activeTab === 'history' && user.isSuperUser && (
+        {activeTab === 'history' && (
           <GlobalHistory reports={reports} />
         )}
       </Layout>

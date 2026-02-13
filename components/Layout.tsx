@@ -15,11 +15,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, children, activeTab, se
     <div className="min-h-screen flex flex-col">
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center space-x-3">
-          <div className="bg-blue-600 text-white p-2 rounded-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          </div>
+          <img src="/assets/new_logo.jpg" alt="SpaceAduanas AI Logo" className="h-10 w-10 rounded-lg" />
           <div>
             <h1 className="font-bold text-xl tracking-tight text-slate-800">SpaceAduanas <span className="text-blue-600">AI</span></h1>
             <p className="text-xs text-slate-500 font-medium">Revisión Inteligente de Pedimentos</p>
