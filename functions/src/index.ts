@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
@@ -16,6 +16,7 @@ if (!API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro"});
 
 // Chatbot function (v1)
 exports.chatWithExpert = functions.https.onCall(async (data, context) => {
@@ -28,8 +29,6 @@ exports.chatWithExpert = functions.https.onCall(async (data, context) => {
     );
   }
 
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-
   const chatPrompt = `
     **ROLE AND OBJECTIVE:**
     You are "Space Bot", an AI assistant specializing in foreign trade and the use of Annex 22 of the General Rules of Foreign Trade of Mexico. Your purpose is to help users understand the SpaceAduanas platform and answer questions about foreign trade.
@@ -37,11 +36,11 @@ exports.chatWithExpert = functions.https.onCall(async (data, context) => {
     **INTERACTION RULES:**
     1.  **IDENTITY:** Always introduce yourself as "Space Bot".
     2.  **TONE:** Be friendly, professional, and very clear in your explanations.
-    3.  **FOCUS:** Concentrate on answering questions about foreign trade, Annex 22, and the platform's functionality.
+    3.  **FOCUS:** Concentrate on answering questions about foreign trade, Annex 22, and the platform\'s functionality.
     4.  **AVOID UNRELATED TOPICS:** If asked about anything else (weather, sports, etc.), kindly redirect the conversation to your areas of expertise.
     5.  **DO NOT DISCLOSE PERSONAL OR CONFIDENTIAL INFORMATION:** Never reveal internal details of the platform, API keys, or information of other users.
 
-    Based on the conversation history and the user's new question, provide a helpful and concise answer.
+    Based on the conversation history and the user\'s new question, provide a helpful and concise answer.
   `;
 
   try {
@@ -82,8 +81,6 @@ exports.runAudit = functions.https.onCall(async (data, context) => {
       "No files were provided for audit."
     );
   }
-
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
   const fileContents = files
     .map((file: any) => `File content ${file.name}:\\n${file.content}`)
@@ -159,7 +156,7 @@ exports.runAudit = functions.https.onCall(async (data, context) => {
   try {
     const result = await model.generateContent(fullPrompt);
     const responseText = result.response.text();
-    // It's safer to find the JSON block and parse it, rather than just removing the backticks.
+    // It\'s safer to find the JSON block and parse it, rather than just removing the backticks.
     const jsonMatch = responseText.match(/\\\`\\\`\\\`json\\n([\\s\\S]*)\\n\\\`\\\`\\\`/);
     if (!jsonMatch || !jsonMatch[1]) {
         throw new Error("Could not find the JSON block in the response.");
