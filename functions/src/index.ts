@@ -1,3 +1,4 @@
+// Forcing a redeploy to pick up new environment variables
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -16,7 +17,7 @@ if (!API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro"});
+const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
 // Chatbot function (v1)
 exports.chatWithExpert = functions.https.onCall(async (data, context) => {
