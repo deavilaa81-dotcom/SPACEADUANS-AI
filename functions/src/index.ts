@@ -12,7 +12,7 @@ const API_KEY = functions.config().gemini.key;
 // Validate that the API key exists
 if (!API_KEY) {
   throw new Error(
-    'The Gemini API key is not set in the environment. Run the command: firebase functions:config:set gemini.key="YOUR_API_KEY"'
+    \'The Gemini API key is not set in the environment. Run the command: firebase functions:config:set gemini.key="YOUR_API_KEY"\'
   );
 }
 
@@ -37,11 +37,11 @@ exports.chatWithExpert = functions.https.onCall(async (data, context) => {
     **INTERACTION RULES:**
     1.  **IDENTITY:** Always introduce yourself as "Space Bot".
     2.  **TONE:** Be friendly, professional, and very clear in your explanations.
-    3.  **FOCUS:** Concentrate on answering questions about foreign trade, Annex 22, and the platform\'s functionality.
+    3.  **FOCUS:** Concentrate on answering questions about foreign trade, Annex 22, and the platform\\\'s functionality.
     4.  **AVOID UNRELATED TOPICS:** If asked about anything else (weather, sports, etc.), kindly redirect the conversation to your areas of expertise.
     5.  **DO NOT DISCLOSE PERSONAL OR CONFIDENTIAL INFORMATION:** Never reveal internal details of the platform, API keys, or information of other users.
 
-    Based on the conversation history and the user\'s new question, provide a helpful and concise answer.
+    Based on the conversation history and the user\\\'s new question, provide a helpful and concise answer.
   `;
 
   try {
@@ -85,7 +85,7 @@ exports.runAudit = functions.https.onCall(async (data, context) => {
 
   const fileContents = files
     .map((file: any) => `File content ${file.name}:\\n${file.content}`)
-    .join('\\n\\n---\\n\\n');
+    .join(\'\\n\\n---\\n\\n\');
 
   const basePrompt = `
     ################################################################################
@@ -107,13 +107,13 @@ exports.runAudit = functions.https.onCall(async (data, context) => {
     You must perform the following cross-validations. For each item, you must check all applicable points.
 
     **1. VALIDATION OF VALUES AT CUSTOMS DECLARATION LEVEL VS. ITEMS:**
-       - **CUSTOMS VALUE:** The sum of the \\\`Customs Value\\\` of ALL items MUST MATCH EXACTLY the total \\\`Customs Value\\\` declared in the customs declaration header. Report any discrepancy, however small.
-       - **COMMERCIAL VALUE:** The sum of the \\\`Commercial Value\\\` (or \\\`Value in Dollars\\\`) of ALL items MUST MATCH EXACTLY the total \\\`Commercial Value\\\` declared in the header.
+       - **CUSTOMS VALUE:** The sum of the 'Customs Value' of ALL items MUST MATCH EXACTLY the total 'Customs Value' declared in the customs declaration header. Report any discrepancy, however small.
+       - **COMMERCIAL VALUE:** The sum of the 'Commercial Value' (or 'Value in Dollars') of ALL items MUST MATCH EXACTLY the total 'Commercial Value' declared in the header.
        - **QUANTITIES:** The sum of the quantities of goods per fiscal unit of measurement (UMT) at the item level must be consistent with the declared totals if they exist.
 
     **2. INTERNAL CONSISTENCY VALIDATION PER ITEM:**
-       - **COMMERCIAL VALUE vs. NATURE:** If the \\\`Commercial Value\\\` of an item is 0 or a ridiculously low value, it is an ERROR. All goods have a value. Investigate and report the inconsistency.
-       - **CUSTOMS VALUE vs. COMMERCIAL VALUE:** The \\\`Customs Value\\\` is calculated from the \\\`Commercial Value\\\` plus incrementals and multiplied by the exchange rate. Perform the calculation: (\\\`Value in Dollars\\\` * \\\`Exchange Rate\\\`) + \\\`Incrementals\\\`. If the result does not match the \\\`Customs Value\\\` declared in the item, it is an ERROR. Show the calculations in your observation.
+       - **COMMERCIAL VALUE vs. NATURE:** If the 'Commercial Value' of an item is 0 or a ridiculously low value, it is an ERROR. All goods have a value. Investigate and report the inconsistency.
+       - **CUSTOMS VALUE vs. COMMERCIAL VALUE:** The 'Customs Value' is calculated from the 'Commercial Value' plus incrementals and multiplied by the exchange rate. Perform the calculation: ('Value in Dollars' * 'Exchange Rate') + 'Incrementals'. If the result does not match the 'Customs Value' declared in the item, it is an ERROR. Show the calculations in your observation.
        - **TARIFF FRACTION:**
          - Verify that the fraction format is correct (8 digits).
          - Validate the consistency of the fraction with the description of the goods (if available).
@@ -122,7 +122,7 @@ exports.runAudit = functions.https.onCall(async (data, context) => {
        - **SELLER/BUYER COUNTRY (P.V/P.C):** Verify that a valid country code is used according to the Annex 22 catalog (e.g., USA, CHN, DEU). They cannot be empty.
 
     **3. RISK AND SAVINGS CALCULATION:**
-       - **RISK:** If an error implies a possible fine or an omitted tax payment (e.g., incorrect \\\`Customs Value\\\`), calculate the amount of the risk. Use a conservative estimate if necessary.
+       - **RISK:** If an error implies a possible fine or an omitted tax payment (e.g., incorrect 'Customs Value'), calculate the amount of the risk. Use a conservative estimate if necessary.
        - **SAVINGS:** If you detect an optimization opportunity (e.g., a more beneficial tariff fraction, an unapplied FTA), calculate the potential savings. If there are no savings, the value is 0.
 
     **OUTPUT FORMAT (STRICT):**
@@ -131,34 +131,23 @@ exports.runAudit = functions.https.onCall(async (data, context) => {
     {
       "campo": "FIELD_NAME_IN_UPPERCASE",
       "partida": "Item number (e.g., 1, 2, ...)",
-      "status": "'correct' or 'error'",
-      "observacion": "Detailed description of the finding. If it is an error, explain WHY it is an error and show your calculations. If it is correct, write 'Complies with cross-validations.'",
-      "valorCorrecto": "The value the field should have. If it is variable or cannot be determined, write a suggestion like 'Verify invoice' or 'Calculate based on proration.'",
-      "riesgo": "Amount in USD of the financial risk detected for this specific error. '0.00' if not applicable.",
-      "ahorro": "Amount in USD of the potential savings detected. '0.00' if not applicable."
+      "status": "\'correct\' or \'error\'",
+      "observacion": "Detailed description of the finding. If it is an error, explain WHY it is an error and show your calculations. If it is correct, write \'Complies with cross-validations.\'",
+      "valorCorrecto": "The value the field should have. If it is variable or cannot be determined, write a suggestion like \'Verify invoice\' or \'Calculate based on proration.\'",
+      "riesgo": "Amount in USD of the financial risk detected for this specific error. \'0.00\' if not applicable.",
+      "ahorro": "Amount in USD of the potential savings detected. \'0.00\' if not applicable."
     }
 
     Now, audit the following files and provide the response in the global JSON format requested:
   `;
 
-  const fullPrompt = `${basePrompt}\\n\\n${fileContents}\\n\\nProvide the response in the following JSON format:\\n\\\`\\\`\\\`json
-{
-  "numero_pedimento": "The extracted customs declaration number.",
-  "statusGeneral": "NON-CONFORMANT if there is at least one 'error', CONFORMANT if all are 'correct'.",
-  "validations": [
-    // Array of validation objects, one for each audited field per item.
-  ],
-  "riesgoTotal": "Sum of all 'risk' fields, formatted as 'USD $X,XXX.XX'",
-  "ahorroPotencial": "Sum of all 'savings' fields, formatted as 'USD $X,XXX.XX'"
-}
-\\\`\\\`\\\`
-`;
+  const fullPrompt = `${basePrompt}\\n\\n${fileContents}\\n\\nProvide the response in the following JSON format:\\n\`\`\`json\n{\n  "numero_pedimento": "The extracted customs declaration number.",\n  "statusGeneral": "NON-CONFORMANT if there is at least one \'error\', CONFORMANT if all are \'correct\'.",\n  "validations": [\n    // Array of validation objects, one for each audited field per item.\n  ],\n  "riesgoTotal": "Sum of all \'risk\' fields, formatted as \'USD $X,XXX.XX\'",\n  "ahorroPotencial": "Sum of all \'savings\' fields, formatted as \'USD $X,XXX.XX\'"\n}\n\`\`\`\n`;
 
   try {
     const result = await model.generateContent(fullPrompt);
     const responseText = result.response.text();
     // It\'s safer to find the JSON block and parse it, rather than just removing the backticks.
-    const jsonMatch = responseText.match(/\\\`\\\`\\\`json\\n([\\s\\S]*)\\n\\\`\\\`\\\`/);
+    const jsonMatch = responseText.match(/```json\\n([\\s\\S]*?)\\n```/);
     if (!jsonMatch || !jsonMatch[1]) {
         throw new Error("Could not find the JSON block in the response.");
     }
